@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -50,11 +51,13 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cleanedBody := replaceProfaneWords(ch.Body)
+
 	type okResponse struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 	respondWithJson(w, http.StatusOK, okResponse{
-		Valid: true,
+		CleanedBody: cleanedBody,
 	})
 }
 
@@ -116,4 +119,27 @@ func (cfg *apiConfig) metricsPrint(w http.ResponseWriter, _ *http.Request) {
 
 func (cfg *apiConfig) metricsReset(_ http.ResponseWriter, _ *http.Request) {
 	cfg.fileserverHits.Store(0)
+}
+
+func replaceProfaneWords(s string) string {
+	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
+
+	words := strings.Split(s, " ")
+	clearedWords := []string{}
+
+	for _, word := range words {
+		clearedWord := ""
+		for _, profaneWord := range profaneWords {
+			if strings.ToLower(word) == profaneWord {
+				clearedWord = "****"
+				break
+			}
+		}
+		if clearedWord == "" {
+			clearedWord = word
+		}
+		clearedWords = append(clearedWords, clearedWord)
+	}
+
+	return strings.Join(clearedWords, " ")
 }
