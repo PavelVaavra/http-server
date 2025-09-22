@@ -41,65 +41,47 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 	ch := chirp{}
 	err := decoder.Decode(&ch)
 	if err != nil {
-		handle500(w, r)
+		respondWithError(w, http.StatusInternalServerError, "Could not decode JSON", err)
 		return
 	}
 
 	if len(ch.Body) > validLength {
-		handle400(w, r)
+		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
 		return
 	}
 
-	type return200 struct {
+	type okResponse struct {
 		Valid bool `json:"valid"`
 	}
-	respBody := return200{
+	respondWithJson(w, http.StatusOK, okResponse{
 		Valid: true,
-	}
-	dat, err := json.Marshal(respBody)
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(dat)
+	})
 }
 
-func handle500(w http.ResponseWriter, _ *http.Request) {
-	type return500 struct {
+func respondWithError(w http.ResponseWriter, code int, msg string, err error) {
+	if err != nil {
+		log.Println(err)
+	}
+	if code > 499 {
+		log.Printf("Responding with 5XX error: %s", msg)
+	}
+	type errorResponse struct {
 		Error string `json:"error"`
 	}
-	respBody := return500{
-		Error: "Something went wrong",
-	}
-	dat, err := json.Marshal(respBody)
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-	w.Write(dat)
+	respondWithJson(w, code, errorResponse{
+		Error: msg,
+	})
 }
 
-func handle400(w http.ResponseWriter, _ *http.Request) {
-	type return400 struct {
-		Error string `json:"error"`
-	}
-	respBody := return400{
-		Error: "Chirp is too long",
-	}
-	dat, err := json.Marshal(respBody)
+func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	dat, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
 		w.WriteHeader(500)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
+	w.WriteHeader(code)
 	w.Write(dat)
 }
 
