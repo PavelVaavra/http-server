@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync/atomic"
 )
@@ -17,6 +19,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", serverStatus)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsPrint)
 	mux.HandleFunc("POST /admin/reset", apiCfg.metricsReset)
+	mux.HandleFunc("POST /api/validate_chirp", validateChirp)
 
 	server := &http.Server{
 		Addr:    ":" + port,
@@ -25,6 +28,79 @@ func main() {
 
 	fmt.Printf("Serving files from %v on port: %v\n", filepathRoot, port)
 	server.ListenAndServe()
+}
+
+func validateChirp(w http.ResponseWriter, r *http.Request) {
+	const validLength = 140
+
+	type chirp struct {
+		Body string `json:"body"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	ch := chirp{}
+	err := decoder.Decode(&ch)
+	if err != nil {
+		handle500(w, r)
+		return
+	}
+
+	if len(ch.Body) > validLength {
+		handle400(w, r)
+		return
+	}
+
+	type return200 struct {
+		Valid bool `json:"valid"`
+	}
+	respBody := return200{
+		Valid: true,
+	}
+	dat, err := json.Marshal(respBody)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(dat)
+}
+
+func handle500(w http.ResponseWriter, _ *http.Request) {
+	type return500 struct {
+		Error string `json:"error"`
+	}
+	respBody := return500{
+		Error: "Something went wrong",
+	}
+	dat, err := json.Marshal(respBody)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	w.Write(dat)
+}
+
+func handle400(w http.ResponseWriter, _ *http.Request) {
+	type return400 struct {
+		Error string `json:"error"`
+	}
+	respBody := return400{
+		Error: "Chirp is too long",
+	}
+	dat, err := json.Marshal(respBody)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	w.Write(dat)
 }
 
 func serverStatus(w http.ResponseWriter, _ *http.Request) {
