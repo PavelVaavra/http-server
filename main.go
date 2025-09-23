@@ -125,21 +125,16 @@ func replaceProfaneWords(s string) string {
 	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
 
 	words := strings.Split(s, " ")
-	clearedWords := []string{}
 
-	for _, word := range words {
-		clearedWord := ""
+	for i, word := range words {
+		loweredWord := strings.ToLower(word)
 		for _, profaneWord := range profaneWords {
-			if strings.ToLower(word) == profaneWord {
-				clearedWord = "****"
+			if loweredWord == profaneWord {
+				words[i] = "****"
 				break
 			}
 		}
-		if clearedWord == "" {
-			clearedWord = word
-		}
-		clearedWords = append(clearedWords, clearedWord)
 	}
 
-	return strings.Join(clearedWords, " ")
+	return strings.Join(words, " ")
 }
