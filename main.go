@@ -17,6 +17,7 @@ import (
 
 func main() {
 	godotenv.Load()
+
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -24,11 +25,14 @@ func main() {
 	}
 	dbQueries := database.New(db)
 
+	platform := os.Getenv("PLATFORM")
+
 	const filepathRoot = "."
 	const port = "8080"
 
 	apiCfg := apiConfig{
 		dbQueries: dbQueries,
+		platform:  platform,
 	}
 	mux := http.NewServeMux()
 
@@ -37,6 +41,7 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsPrint)
 	mux.HandleFunc("POST /admin/reset", apiCfg.metricsReset)
 	mux.HandleFunc("POST /api/validate_chirp", validateChirp)
+	mux.HandleFunc("POST /api/users", apiCfg.createUsers)
 
 	server := &http.Server{
 		Addr:    ":" + port,
@@ -113,6 +118,7 @@ func serverStatus(w http.ResponseWriter, _ *http.Request) {
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
+	platform       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -134,8 +140,18 @@ func (cfg *apiConfig) metricsPrint(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte(html))
 }
 
-func (cfg *apiConfig) metricsReset(_ http.ResponseWriter, _ *http.Request) {
+func (cfg *apiConfig) metricsReset(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Store(0)
+	if cfg.platform != "dev" {
+		respondWithError(w, http.StatusForbidden, "Users can be deleted only in dev platform.", nil)
+		return
+	}
+	err := cfg.dbQueries.DeleteAllUsers(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete users from the table", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func replaceProfaneWords(s string) string {
