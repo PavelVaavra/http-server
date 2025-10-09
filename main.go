@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"sync/atomic"
 
 	"github.com/PavelVaavra/http-server/internal/database"
@@ -40,8 +39,8 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", serverStatus)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsPrint)
 	mux.HandleFunc("POST /admin/reset", apiCfg.metricsReset)
-	mux.HandleFunc("POST /api/validate_chirp", validateChirp)
 	mux.HandleFunc("POST /api/users", apiCfg.createUsers)
+	mux.HandleFunc("POST /api/chirps", apiCfg.createChirps)
 
 	server := &http.Server{
 		Addr:    ":" + port,
@@ -50,36 +49,6 @@ func main() {
 
 	fmt.Printf("Serving files from %v on port: %v\n", filepathRoot, port)
 	server.ListenAndServe()
-}
-
-func validateChirp(w http.ResponseWriter, r *http.Request) {
-	const validLength = 140
-
-	type chirp struct {
-		Body string `json:"body"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	ch := chirp{}
-	err := decoder.Decode(&ch)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not decode JSON", err)
-		return
-	}
-
-	if len(ch.Body) > validLength {
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
-		return
-	}
-
-	cleanedBody := replaceProfaneWords(ch.Body)
-
-	type okResponse struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-	respondWithJson(w, http.StatusOK, okResponse{
-		CleanedBody: cleanedBody,
-	})
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string, err error) {
@@ -152,22 +121,4 @@ func (cfg *apiConfig) metricsReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-}
-
-func replaceProfaneWords(s string) string {
-	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
-
-	words := strings.Split(s, " ")
-
-	for i, word := range words {
-		loweredWord := strings.ToLower(word)
-		for _, profaneWord := range profaneWords {
-			if loweredWord == profaneWord {
-				words[i] = "****"
-				break
-			}
-		}
-	}
-
-	return strings.Join(words, " ")
 }
