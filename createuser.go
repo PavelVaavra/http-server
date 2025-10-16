@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/PavelVaavra/http-server/internal/auth"
+	"github.com/PavelVaavra/http-server/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -17,7 +19,8 @@ type User struct {
 
 func (cfg *apiConfig) createUsers(w http.ResponseWriter, r *http.Request) {
 	type userParams struct {
-		Email string `json:"email"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -28,7 +31,16 @@ func (cfg *apiConfig) createUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.dbQueries.CreateUser(r.Context(), params.Email)
+	hash, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not hash password", err)
+		return
+	}
+
+	user, err := cfg.dbQueries.CreateUser(r.Context(), database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hash,
+	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create user", err)
 		return
