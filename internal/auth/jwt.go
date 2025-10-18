@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -57,4 +60,21 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	}
 
 	return id, nil
+}
+
+// Auth information will come into our server in the Authorization header. Its value will look like this: Bearer TOKEN_STRING
+// This function should look for the Authorization header in the headers parameter and return the TOKEN_STRING if it exists
+// (stripping off the Bearer prefix and whitespace). If the header doesn't exist, return an error. This is an easy one to write a unit test for,
+// and I'd recommend doing so.
+func GetBearerToken(headers http.Header) (string, error) {
+	rawValue := headers.Get("Authorization")
+	if rawValue == "" {
+		return "", fmt.Errorf("no authorization header")
+	}
+	rawValue = strings.TrimSpace(rawValue)
+	parts := strings.SplitN(rawValue, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return "", fmt.Errorf("header value not in format \"Bearer TOKEN_STRING\"")
+	}
+	return parts[1], nil
 }

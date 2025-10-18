@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PavelVaavra/http-server/internal/auth"
 	"github.com/PavelVaavra/http-server/internal/database"
 	"github.com/google/uuid"
 )
@@ -22,13 +23,23 @@ func (cfg *apiConfig) createChirps(w http.ResponseWriter, r *http.Request) {
 	const validLength = 140
 
 	type chirpParams struct {
-		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
+	}
+
+	jwtToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "User isn't logged in, no JWT token available", err)
+		return
+	}
+	userId, err := auth.ValidateJWT(jwtToken, cfg.tokenSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "User isn't logged in, JWT isn't validated", err)
+		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
 	params := chirpParams{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not decode JSON", err)
 		return
@@ -43,7 +54,7 @@ func (cfg *apiConfig) createChirps(w http.ResponseWriter, r *http.Request) {
 
 	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   cleanedBody,
-		UserID: params.UserId,
+		UserID: userId,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create chirp", err)
