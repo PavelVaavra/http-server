@@ -121,6 +121,16 @@ func (cfg *apiConfig) updateUsers(w http.ResponseWriter, r *http.Request) {
 // - If the user is upgraded successfully, the endpoint should respond with a 204 status code and an empty response body. If the user can't be found,
 // the endpoint should respond with a 404 status code.
 func (cfg *apiConfig) webhooks(w http.ResponseWriter, r *http.Request) {
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Error getting API key", err)
+		return
+	}
+	if apiKey != cfg.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "Header ApiKey != Polka ApiKey", err)
+		return
+	}
+
 	type data struct {
 		UserId uuid.UUID `json:"user_id"`
 	}
@@ -132,7 +142,7 @@ func (cfg *apiConfig) webhooks(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 	params := webhooksParams{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not decode JSON", err)
 		return

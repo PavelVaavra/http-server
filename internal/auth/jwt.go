@@ -78,3 +78,17 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 	return parts[1], nil
 }
+
+// Authorization: ApiKey THE_KEY_HERE
+func GetAPIKey(headers http.Header) (string, error) {
+	rawValue := headers.Get("Authorization")
+	if rawValue == "" {
+		return "", fmt.Errorf("no authorization header")
+	}
+	rawValue = strings.TrimSpace(rawValue)
+	parts := strings.SplitN(rawValue, " ", 2)
+	if len(parts) != 2 || parts[0] != "ApiKey" {
+		return "", fmt.Errorf("header value not in format \"ApiKey THE_KEY_HERE\"")
+	}
+	return parts[1], nil
+}

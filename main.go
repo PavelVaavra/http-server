@@ -26,6 +26,7 @@ func main() {
 
 	platform := os.Getenv("PLATFORM")
 	tokenSecret := os.Getenv("TOKEN_SECRET")
+	polkaKey := os.Getenv("POLKA_KEY")
 
 	const filepathRoot = "."
 	const port = "8080"
@@ -34,6 +35,7 @@ func main() {
 		dbQueries:   dbQueries,
 		platform:    platform,
 		tokenSecret: tokenSecret,
+		polkaKey:    polkaKey,
 	}
 	mux := http.NewServeMux()
 
@@ -99,6 +101,7 @@ type apiConfig struct {
 	dbQueries      *database.Queries
 	platform       string
 	tokenSecret    string
+	polkaKey       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
