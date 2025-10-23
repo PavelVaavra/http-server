@@ -11,10 +11,11 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 type userParams struct {
@@ -47,10 +48,11 @@ func (cfg *apiConfig) createUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJson(w, http.StatusCreated, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
@@ -97,9 +99,55 @@ func (cfg *apiConfig) updateUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJson(w, http.StatusOK, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
+}
+
+// - Add a POST /api/polka/webhooks endpoint. It should accept a request of this shape:
+// {
+//   "event": "user.upgraded",
+//   "data": {
+//     "user_id": "3311741c-680c-4546-99f3-fc9efac2036c"
+//   }
+// }
+
+// - If the event is anything other than user.upgraded, the endpoint should immediately respond with a 204 status code - we don't care about any
+// other events.
+// - If the event is user.upgraded, then it should update the user in the database, and mark that they are a Chirpy Red member.
+// - If the user is upgraded successfully, the endpoint should respond with a 204 status code and an empty response body. If the user can't be found,
+// the endpoint should respond with a 404 status code.
+func (cfg *apiConfig) webhooks(w http.ResponseWriter, r *http.Request) {
+	type data struct {
+		UserId uuid.UUID `json:"user_id"`
+	}
+
+	type webhooksParams struct {
+		Event string `json:"event"`
+		Data  data   `json:"data"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := webhooksParams{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not decode JSON", err)
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	err = cfg.dbQueries.UpdateUserChirpyRed(r.Context(), params.Data.UserId)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "User not found", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

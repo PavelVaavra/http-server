@@ -50,6 +50,7 @@ func main() {
 	mux.HandleFunc("POST /api/login", apiCfg.login)
 	mux.HandleFunc("POST /api/refresh", apiCfg.refresh)
 	mux.HandleFunc("POST /api/revoke", apiCfg.revoke)
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.webhooks)
 
 	server := &http.Server{
 		Addr:    ":" + port,

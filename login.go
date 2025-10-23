@@ -73,10 +73,11 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJson(w, http.StatusOK, response{
 		User: User{
-			ID:        user.ID,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Email:     user.Email,
+			ID:          user.ID,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 		Token:        tokenString,
 		RefreshToken: refreshToken,
