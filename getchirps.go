@@ -3,11 +3,24 @@ package main
 import (
 	"net/http"
 
+	"github.com/PavelVaavra/http-server/internal/database"
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.dbQueries.ListChirps(r.Context())
+	s := r.URL.Query().Get("author_id")
+	id, err := uuid.Parse(s)
+	if err != nil && s != "" {
+		respondWithError(w, http.StatusBadRequest, "Invalid author id", err)
+		return
+	}
+
+	var chirps []database.Chirp
+	if s != "" {
+		chirps, err = cfg.dbQueries.ListChirpsByUserId(r.Context(), id)
+	} else {
+		chirps, err = cfg.dbQueries.ListChirps(r.Context())
+	}
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not list chirps.", err)
 		return
