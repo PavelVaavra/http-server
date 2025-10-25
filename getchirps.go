@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"sort"
 
 	"github.com/PavelVaavra/http-server/internal/database"
 	"github.com/google/uuid"
@@ -24,6 +25,11 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not list chirps.", err)
 		return
+	}
+
+	sortQuery := r.URL.Query().Get("sort")
+	if sortQuery != "" && sortQuery == "desc" {
+		sort.Slice(chirps, func(i, j int) bool { return chirps[i].CreatedAt.After(chirps[j].CreatedAt) })
 	}
 
 	payload := []Chirp{}
